@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doom Web - Miguel Edition</title>
+    <style>
+        body { background: #000; color: #f00; font-family: sans-serif; text-align: center; margin: 0; overflow: hidden; }
+        #canvas { width: 100vw; height: 100vh; background: #000; image-rendering: pixelated; }
+        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        button { padding: 15px 30px; font-size: 20px; background: #900; color: #fff; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #f00; }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>DOOM</h1>
+        <button id="start-btn">JOGAR AGORA</button>
+        <p style="color: #666;">Setas: Mover | CTRL: Atirar | Espaço: Abrir</p>
+    </div>
+
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+
+    <script type='text/javascript'>
+        var Module = {
+            preRun: [],
+            postRun: [],
+            print: function(text) { console.log(text); },
+            canvas: document.getElementById('canvas'),
+            // Argumentos para rodar o WAD que está na sua pasta
+            arguments: ["-iwad", "DOOM.WAD", "-window"],
+            setStatus: function(text) { console.log(text); }
+        };
+
+        document.getElementById('start-btn').addEventListener('click', function() {
+            document.getElementById('overlay').style.display = 'none';
+            // Carrega o arquivo doom.js que você baixou
+            const script = document.createElement('script');
+            script.src = "doom.js"; 
+            document.body.appendChild(script);
+        });
+    </script>
+</body>
+</html>
