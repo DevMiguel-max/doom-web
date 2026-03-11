@@ -84,55 +84,70 @@
         </div>
     </div>
 
-    <script type='text/javascript'>
-        // Configuração do Emscripten (O motor do jogo)
-        var Module = {
-            preRun: [
-                function() {
-                    // O truque: Avisa o sistema virtual para baixar o WAD antes de tentar rodar
-                    console.log("Iniciando o download do DOOM.WAD para a memória...");
-                    FS.createPreloadedFile('/', 'DOOM.WAD', 'DOOM.WAD', true, true);
-                }
-            ],
-            postRun: [
-                function() {
-                    console.log("Motor WASM carregado com sucesso!");
-                }
-            ],
-            print: function(text) { console.log(text); },
-            printErr: function(text) { console.error(text); },
-            canvas: document.getElementById('canvas'),
-            
-            // Argumentos que seriam passados pelo terminal para o Doom
-            arguments: ["-iwad", "DOOM.WAD", "-window"],
-            
-            setStatus: function(text) { 
-                console.log("Status: " + text); 
+  <script type='text/javascript'>
+    var Module = {
+        preRun: [
+            function() {
+                // 1. Avisa o motor para PAUSAR e não iniciar o jogo ainda
+                Module.addRunDependency('carregar_wad');
+                
+                console.log("Iniciando o download do DOOM.WAD...");
+                document.getElementById('loading-status').innerText = "Baixando DOOM.WAD (12MB)...";
+                document.getElementById('loading-status').style.display = 'block';
+
+                // 2. Faz o download do arquivo real
+                fetch('DOOM.WAD')
+                    .then(function(response) {
+                        if (!response.ok) throw new Error("DOOM.WAD não encontrado no servidor.");
+                        return response.arrayBuffer();
+                    })
+                    .then(function(buffer) {
+                        // 3. Escreve o arquivo na memória virtual do motor
+                        FS.writeFile('DOOM.WAD', new Uint8Array(buffer));
+                        console.log("DOOM.WAD gravado na memória com sucesso!");
+                        
+                        document.getElementById('loading-status').innerText = "Iniciando motor gráfico...";
+                        
+                        // 4. Libera o motor para continuar a inicialização
+                        Module.removeRunDependency('carregar_wad');
+                    })
+                    .catch(function(error) {
+                        console.error("Erro fatal:", error);
+                        document.getElementById('loading-status').innerText = "Erro: " + error.message;
+                        document.getElementById('loading-status').style.color = "red";
+                    });
             }
+        ],
+        postRun: [
+            function() {
+                console.log("Motor WASM rodando!");
+                // Remove o aviso da tela
+                setTimeout(() => {
+                    document.getElementById('overlay').style.display = 'none';
+                }, 1000);
+            }
+        ],
+        print: function(text) { console.log("DOOM: " + text); },
+        printErr: function(text) { console.error("DOOM ERRO: " + text); },
+        canvas: document.getElementById('canvas'),
+        arguments: ["-iwad", "DOOM.WAD", "-window"],
+        setStatus: function(text) { console.log("Status: " + text); }
+    };
+
+    document.getElementById('start-btn').addEventListener('click', function() {
+        this.style.display = 'none';
+        
+        const script = document.createElement('script');
+        script.src = "doom.js"; 
+        
+        script.onerror = function() {
+            document.getElementById('loading-status').innerText = "Erro ao carregar doom.js";
+            document.getElementById('loading-status').style.color = "red";
         };
 
-        // Lógica do botão de iniciar
-        document.getElementById('start-btn').addEventListener('click', function() {
-            // Esconde o botão e mostra mensagem de carregando
-            this.style.display = 'none';
-            document.getElementById('loading-status').style.display = 'block';
-            
-            // Injeta o arquivo doom.js na página, que por sua vez vai puxar o doom.wasm
-            const script = document.createElement('script');
-            script.src = "doom.js"; 
-            
-            // Se der erro ao carregar o doom.js
-            script.onerror = function() {
-                alert("Erro ao carregar o arquivo doom.js. Verifique se ele está no GitHub.");
-            };
-
-            document.body.appendChild(script);
-
-            // Tira o overlay completamente depois de alguns segundos para liberar a tela
-            setTimeout(() => {
-                document.getElementById('overlay').style.display = 'none';
-            }, 3000);
-        });
-    </script>
+        document.body.appendChild(script);
+    });
+</script>
 </body>
 </html>
+
