@@ -11,7 +11,7 @@
             font-family: 'Courier New', Courier, monospace; 
             text-align: center; 
             margin: 0; 
-            overflow: hidden; /* Remove as barras de rolagem */
+            overflow: hidden; 
         }
         #game-container {
             position: relative;
@@ -26,8 +26,9 @@
             max-width: 100%; 
             max-height: 100%; 
             background-color: #000; 
-            image-rendering: pixelated; /* Deixa os gráficos clássicos bem definidos */
+            image-rendering: pixelated; 
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
+            outline: none; /* Remove a borda azul quando clica */
         }
         #overlay { 
             position: absolute; 
@@ -66,12 +67,15 @@
             color: #aaa;
             font-size: 14px;
         }
+        
+        /* Ocultando os elementos técnicos que o doom.js precisa para não travar */
+        #hidden-stats { display: none; }
     </style>
 </head>
 <body>
 
     <div id="game-container">
-        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+        <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
         
         <div id="overlay">
             <h1>DOOM WEB</h1>
@@ -84,70 +88,65 @@
         </div>
     </div>
 
-  <script type='text/javascript'>
-    var Module = {
-        preRun: [
-            function() {
-                // 1. Avisa o motor para PAUSAR e não iniciar o jogo ainda
-                Module.addRunDependency('carregar_wad');
-                
-                console.log("Iniciando o download do DOOM.WAD...");
-                document.getElementById('loading-status').innerText = "Baixando DOOM.WAD (12MB)...";
-                document.getElementById('loading-status').style.display = 'block';
+    <div id="hidden-stats">
+        <div id="output"></div>
+        <div id="focushint"></div>
+        <div id="animationfps_stats"></div>
+        <div id="getmsps_stats"></div>
+        <div id="getms_stats"></div>
+    </div>
 
-                // 2. Faz o download do arquivo real
-                fetch('DOOM.WAD')
-                    .then(function(response) {
-                        if (!response.ok) throw new Error("DOOM.WAD não encontrado no servidor.");
-                        return response.arrayBuffer();
-                    })
-                    .then(function(buffer) {
-                        // 3. Escreve o arquivo na memória virtual do motor
-                        FS.writeFile('DOOM.WAD', new Uint8Array(buffer));
-                        console.log("DOOM.WAD gravado na memória com sucesso!");
-                        
-                        document.getElementById('loading-status').innerText = "Iniciando motor gráfico...";
-                        
-                        // 4. Libera o motor para continuar a inicialização
-                        Module.removeRunDependency('carregar_wad');
-                    })
-                    .catch(function(error) {
-                        console.error("Erro fatal:", error);
-                        document.getElementById('loading-status').innerText = "Erro: " + error.message;
-                        document.getElementById('loading-status').style.color = "red";
-                    });
-            }
-        ],
-        postRun: [
-            function() {
-                console.log("Motor WASM rodando!");
-                // Remove o aviso da tela
-                setTimeout(() => {
-                    document.getElementById('overlay').style.display = 'none';
-                }, 1000);
-            }
-        ],
-        print: function(text) { console.log("DOOM: " + text); },
-        printErr: function(text) { console.error("DOOM ERRO: " + text); },
-        canvas: document.getElementById('canvas'),
-        arguments: ["-iwad", "DOOM.WAD", "-window"],
-        setStatus: function(text) { console.log("Status: " + text); }
-    };
+    <script type='text/javascript'>
+        var Module = {
+            preRun: [
+                function() {
+                    Module.addRunDependency('carregar_wad');
+                    
+                    console.log("Baixando o DOOM.WAD...");
+                    document.getElementById('loading-status').innerText = "Baixando DOOM.WAD...";
+                    document.getElementById('loading-status').style.display = 'block';
 
-    document.getElementById('start-btn').addEventListener('click', function() {
-        this.style.display = 'none';
-        
-        const script = document.createElement('script');
-        script.src = "doom.js"; 
-        
-        script.onerror = function() {
-            document.getElementById('loading-status').innerText = "Erro ao carregar doom.js";
-            document.getElementById('loading-status').style.color = "red";
+                    fetch('DOOM.WAD')
+                        .then(function(response) {
+                            if (!response.ok) throw new Error("DOOM.WAD não encontrado.");
+                            return response.arrayBuffer();
+                        })
+                        .then(function(buffer) {
+                            FS.writeFile('DOOM.WAD', new Uint8Array(buffer));
+                            console.log("DOOM.WAD pronto!");
+                            document.getElementById('loading-status').innerText = "Iniciando motor gráfico...";
+                            Module.removeRunDependency('carregar_wad');
+                        })
+                        .catch(function(error) {
+                            console.error("Erro no WAD:", error);
+                            document.getElementById('loading-status').innerText = "Erro: " + error.message;
+                            document.getElementById('loading-status').style.color = "red";
+                        });
+                }
+            ],
+            postRun: [
+                function() {
+                    console.log("Motor WASM rodando!");
+                    setTimeout(() => {
+                        document.getElementById('overlay').style.display = 'none';
+                        // Foca automaticamente no canvas para o teclado funcionar de cara
+                        document.getElementById('canvas').focus();
+                    }, 1000);
+                }
+            ],
+            print: function(text) { console.log(text); },
+            printErr: function(text) { console.error(text); },
+            canvas: document.getElementById('canvas'),
+            arguments: ["-iwad", "DOOM.WAD", "-window"],
+            setStatus: function(text) { console.log("Status: " + text); }
         };
 
-        document.body.appendChild(script);
-    });
-</script>
+        document.getElementById('start-btn').addEventListener('click', function() {
+            this.style.display = 'none';
+            const script = document.createElement('script');
+            script.src = "doom.js"; 
+            document.body.appendChild(script);
+        });
+    </script>
 </body>
 </html>
-
