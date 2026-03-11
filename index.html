@@ -3,42 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doom Web - Miguel Edition</title>
+    <title>Doom Web - WASM Edition</title>
     <style>
-        body { background: #000; color: #f00; font-family: sans-serif; text-align: center; margin: 0; overflow: hidden; }
-        #canvas { width: 100vw; height: 100vh; background: #000; image-rendering: pixelated; }
-        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-        button { padding: 15px 30px; font-size: 20px; background: #900; color: #fff; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #f00; }
+        body { 
+            background-color: #000; 
+            color: #f00; 
+            font-family: 'Courier New', Courier, monospace; 
+            text-align: center; 
+            margin: 0; 
+            overflow: hidden; /* Remove as barras de rolagem */
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #111;
+        }
+        canvas { 
+            max-width: 100%; 
+            max-height: 100%; 
+            background-color: #000; 
+            image-rendering: pixelated; /* Deixa os gráficos clássicos bem definidos */
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
+        }
+        #overlay { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            background: rgba(0, 0, 0, 0.85);
+            padding: 40px;
+            border: 2px solid #555;
+            border-radius: 10px;
+            z-index: 10;
+        }
+        h1 {
+            font-size: 48px;
+            margin-top: 0;
+            text-shadow: 2px 2px #5a0000;
+        }
+        button { 
+            padding: 15px 40px; 
+            font-size: 20px; 
+            background-color: #900; 
+            color: #fff; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold; 
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        button:hover { 
+            background-color: #f00; 
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #f00;
+        }
+        .controls {
+            margin-top: 20px;
+            color: #aaa;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
 
-    <div id="overlay">
-        <h1>DOOM</h1>
-        <button id="start-btn">JOGAR AGORA</button>
-        <p style="color: #666;">Setas: Mover | CTRL: Atirar | Espaço: Abrir</p>
+    <div id="game-container">
+        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+        
+        <div id="overlay">
+            <h1>DOOM WEB</h1>
+            <button id="start-btn">INICIAR JOGO</button>
+            <div class="controls">
+                <p><strong>Setas / WASD:</strong> Mover</p>
+                <p><strong>CTRL:</strong> Atirar | <strong>Espaço:</strong> Abrir Portas</p>
+            </div>
+            <p id="loading-status" style="color: yellow; display: none;">Carregando arquivos, aguarde...</p>
+        </div>
     </div>
 
-    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-
     <script type='text/javascript'>
+        // Configuração do Emscripten (O motor do jogo)
         var Module = {
-            preRun: [],
-            postRun: [],
+            preRun: [
+                function() {
+                    // O truque: Avisa o sistema virtual para baixar o WAD antes de tentar rodar
+                    console.log("Iniciando o download do DOOM.WAD para a memória...");
+                    FS.createPreloadedFile('/', 'DOOM.WAD', 'DOOM.WAD', true, true);
+                }
+            ],
+            postRun: [
+                function() {
+                    console.log("Motor WASM carregado com sucesso!");
+                }
+            ],
             print: function(text) { console.log(text); },
+            printErr: function(text) { console.error(text); },
             canvas: document.getElementById('canvas'),
-            // Argumentos para rodar o WAD que está na sua pasta
+            
+            // Argumentos que seriam passados pelo terminal para o Doom
             arguments: ["-iwad", "DOOM.WAD", "-window"],
-            setStatus: function(text) { console.log(text); }
+            
+            setStatus: function(text) { 
+                console.log("Status: " + text); 
+            }
         };
 
+        // Lógica do botão de iniciar
         document.getElementById('start-btn').addEventListener('click', function() {
-            document.getElementById('overlay').style.display = 'none';
-            // Carrega o arquivo doom.js que você baixou
+            // Esconde o botão e mostra mensagem de carregando
+            this.style.display = 'none';
+            document.getElementById('loading-status').style.display = 'block';
+            
+            // Injeta o arquivo doom.js na página, que por sua vez vai puxar o doom.wasm
             const script = document.createElement('script');
             script.src = "doom.js"; 
+            
+            // Se der erro ao carregar o doom.js
+            script.onerror = function() {
+                alert("Erro ao carregar o arquivo doom.js. Verifique se ele está no GitHub.");
+            };
+
             document.body.appendChild(script);
+
+            // Tira o overlay completamente depois de alguns segundos para liberar a tela
+            setTimeout(() => {
+                document.getElementById('overlay').style.display = 'none';
+            }, 3000);
         });
     </script>
 </body>
