@@ -28,7 +28,7 @@
             background-color: #000; 
             image-rendering: pixelated; 
             box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
-            outline: none; /* Remove a borda azul quando clica */
+            outline: none;
         }
         #overlay { 
             position: absolute; 
@@ -67,9 +67,6 @@
             color: #aaa;
             font-size: 14px;
         }
-        
-        /* Ocultando os elementos técnicos que o doom.js precisa para não travar */
-        #hidden-stats { display: none; }
     </style>
 </head>
 <body>
@@ -88,21 +85,31 @@
         </div>
     </div>
 
-    <div id="hidden-stats">
-        <div id="output"></div>
-        <div id="focushint"></div>
-        <div id="animationfps_stats"></div>
-        <div id="getmsps_stats"></div>
-        <div id="getms_stats"></div>
-    </div>
-
     <script type='text/javascript'>
+        // ==========================================
+        // O HACK SUPREMO: Interceptar getElementById
+        // ==========================================
+        const originalGetElementById = document.getElementById.bind(document);
+        document.getElementById = function(id) {
+            let el = originalGetElementById(id);
+            // Se o doom.js procurar algo que não existe na nossa tela...
+            if (!el) {
+                // ...nós criamos uma div fantasma na mesma hora!
+                el = document.createElement('div');
+                el.id = id;
+                el.style.display = 'none'; // Fica invisível
+                document.body.appendChild(el);
+                console.log("Fantasma automático criado para o elemento: " + id);
+            }
+            return el;
+        };
+        // ==========================================
+
         var Module = {
             preRun: [
                 function() {
                     Module.addRunDependency('carregar_wad');
                     
-                    console.log("Baixando o DOOM.WAD...");
                     document.getElementById('loading-status').innerText = "Baixando DOOM.WAD...";
                     document.getElementById('loading-status').style.display = 'block';
 
@@ -113,7 +120,7 @@
                         })
                         .then(function(buffer) {
                             FS.writeFile('DOOM.WAD', new Uint8Array(buffer));
-                            console.log("DOOM.WAD pronto!");
+                            console.log("DOOM.WAD pronto na memória!");
                             document.getElementById('loading-status').innerText = "Iniciando motor gráfico...";
                             Module.removeRunDependency('carregar_wad');
                         })
@@ -129,7 +136,6 @@
                     console.log("Motor WASM rodando!");
                     setTimeout(() => {
                         document.getElementById('overlay').style.display = 'none';
-                        // Foca automaticamente no canvas para o teclado funcionar de cara
                         document.getElementById('canvas').focus();
                     }, 1000);
                 }
