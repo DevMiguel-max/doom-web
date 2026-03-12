@@ -3,155 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doom Web - WASM Edition</title>
+    <title>Doom Web - Miguel Edition</title>
     <style>
-        body { 
-            background-color: #000; 
-            color: #f00; 
-            font-family: 'Courier New', Courier, monospace; 
-            text-align: center; 
-            margin: 0; 
-            overflow: hidden; 
-        }
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: #111;
-        }
-        canvas { 
-            max-width: 100%; 
-            max-height: 100%; 
-            background-color: #000; 
-            image-rendering: pixelated; 
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.2);
-            outline: none;
-        }
-        #overlay { 
-            position: absolute; 
-            top: 50%; 
-            left: 50%; 
-            transform: translate(-50%, -50%); 
-            background: rgba(0, 0, 0, 0.85);
-            padding: 40px;
-            border: 2px solid #555;
-            border-radius: 10px;
-            z-index: 10;
-        }
-        h1 {
-            font-size: 48px;
-            margin-top: 0;
-            text-shadow: 2px 2px #5a0000;
-        }
-        button { 
-            padding: 15px 40px; 
-            font-size: 20px; 
-            background-color: #900; 
-            color: #fff; 
-            border: none; 
-            cursor: pointer; 
-            font-weight: bold; 
-            border-radius: 5px;
-            transition: 0.3s;
-        }
-        button:hover { 
-            background-color: #f00; 
-            transform: scale(1.05);
-            box-shadow: 0 0 15px #f00;
-        }
-        .controls {
-            margin-top: 20px;
-            color: #aaa;
-            font-size: 14px;
-        }
+        body { background: #000; color: #f00; font-family: 'Courier New', monospace; text-align: center; margin: 0; overflow: hidden; }
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        canvas { max-width: 100%; max-height: 100%; background: #000; image-rendering: pixelated; }
+        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); padding: 30px; border: 2px solid #555; z-index: 100; }
+        button#start-btn { padding: 15px 30px; font-size: 20px; background: #900; color: #fff; border: none; cursor: pointer; }
+        
+        /* Esconde todos os elementos técnicos que o doom.js exige */
+        #tech-layer { display: none; }
     </style>
 </head>
 <body>
 
     <div id="game-container">
-        <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+        <canvas id="canvas" tabindex="-1"></canvas>
         
         <div id="overlay">
             <h1>DOOM WEB</h1>
-            <button id="start-btn">INICIAR JOGO</button>
-            <div class="controls">
-                <p><strong>Setas / WASD:</strong> Mover</p>
-                <p><strong>CTRL:</strong> Atirar | <strong>Espaço:</strong> Abrir Portas</p>
-            </div>
-            <p id="loading-status" style="color: yellow; display: none;">Carregando arquivos, aguarde...</p>
+            <button id="start-btn">JOGAR AGORA</button>
+            <p id="loading-status" style="color: yellow; margin-top: 15px; display: none;">Carregando...</p>
         </div>
     </div>
 
+    <div id="tech-layer">
+        <div id="output"></div>
+        <div id="focushint"></div>
+        <div id="animationfps_stats">0</div>
+        <div id="getmsps_stats">0</div>
+        <div id="getms_stats">0</div>
+        <button id="up"></button>
+        <button id="down"></button>
+        <button id="left"></button>
+        <button id="right"></button>
+        <button id="shoot"></button>
+        <button id="open"></button>
+    </div>
+
     <script type='text/javascript'>
-        // ==========================================
-        // O HACK SUPREMO: Interceptar getElementById
-        // ==========================================
-        const originalGetElementById = document.getElementById.bind(document);
-        document.getElementById = function(id) {
-            let el = originalGetElementById(id);
-            // Se o doom.js procurar algo que não existe na nossa tela...
-            if (!el) {
-                // ...nós criamos uma div fantasma na mesma hora!
-                el = document.createElement('div');
-                el.id = id;
-                el.style.display = 'none'; // Fica invisível
-                document.body.appendChild(el);
-                console.log("Fantasma automático criado para o elemento: " + id);
-            }
-            return el;
-        };
-        // ==========================================
-
         var Module = {
-            preRun: [
-                function() {
-                    Module.addRunDependency('carregar_wad');
-                    
-                    document.getElementById('loading-status').innerText = "Baixando DOOM.WAD...";
-                    document.getElementById('loading-status').style.display = 'block';
-
-                    fetch('DOOM.WAD')
-                        .then(function(response) {
-                            if (!response.ok) throw new Error("DOOM.WAD não encontrado.");
-                            return response.arrayBuffer();
-                        })
-                        .then(function(buffer) {
-                            FS.writeFile('DOOM.WAD', new Uint8Array(buffer));
-                            console.log("DOOM.WAD pronto na memória!");
-                            document.getElementById('loading-status').innerText = "Iniciando motor gráfico...";
-                            Module.removeRunDependency('carregar_wad');
-                        })
-                        .catch(function(error) {
-                            console.error("Erro no WAD:", error);
-                            document.getElementById('loading-status').innerText = "Erro: " + error.message;
-                            document.getElementById('loading-status').style.color = "red";
-                        });
-                }
-            ],
-            postRun: [
-                function() {
-                    console.log("Motor WASM rodando!");
-                    setTimeout(() => {
-                        document.getElementById('overlay').style.display = 'none';
-                        document.getElementById('canvas').focus();
-                    }, 1000);
-                }
-            ],
-            print: function(text) { console.log(text); },
-            printErr: function(text) { console.error(text); },
+            preRun: [function() {
+                Module.addRunDependency('load_wad');
+                fetch('DOOM.WAD').then(r => r.arrayBuffer()).then(b => {
+                    FS.writeFile('DOOM.WAD', new Uint8Array(b));
+                    Module.removeRunDependency('load_wad');
+                });
+            }],
             canvas: document.getElementById('canvas'),
             arguments: ["-iwad", "DOOM.WAD", "-window"],
-            setStatus: function(text) { console.log("Status: " + text); }
+            print: console.log,
+            printErr: console.error
         };
 
         document.getElementById('start-btn').addEventListener('click', function() {
             this.style.display = 'none';
-            const script = document.createElement('script');
-            script.src = "doom.js"; 
-            document.body.appendChild(script);
+            document.getElementById('loading-status').style.display = 'block';
+            
+            // Inicia o motor
+            const s = document.createElement('script');
+            s.src = "doom.js";
+            document.body.appendChild(s);
+
+            // Tira o overlay após o motor estabilizar
+            setTimeout(() => {
+                document.getElementById('overlay').style.display = 'none';
+                document.getElementById('canvas').focus();
+            }, 2000);
         });
     </script>
 </body>
